@@ -8,12 +8,15 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, 'Noto Sans KR', sans-serif; background: #f5f5f5; }
-        #map { width: 100%; height: 55vh; }
-        .header-bar { background: #fff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        #map { width: 100%; height: 50vh; }
+        .leaflet-control-attribution { display: none !important; }
+        .leaflet-control-zoom { border: none !important; box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important; }
+        .leaflet-control-zoom a { width: 32px !important; height: 32px !important; line-height: 32px !important; font-size: 16px !important; border-radius: 8px !important; }
+        .header-bar { background: #fff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
         .header-bar h1 { font-size: 17px; color: #333; }
         .place-count { background: #1ec800; color: #fff; padding: 3px 10px; border-radius: 14px; font-size: 12px; }
-        .spot-card { background: #fff; margin: 12px; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); overflow: hidden; }
-        .spot-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px; }
+        .spot-card { background: #fff; margin: 12px; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden; }
+        .spot-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
         .spot-name { font-size: 18px; font-weight: 700; color: #222; }
         .spot-tag { background: #e8f8e0; color: #1ec800; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
         .spot-address { padding: 0 16px 10px; color: #888; font-size: 13px; }
@@ -21,12 +24,13 @@
         .photo-scroll { display: flex; gap: 8px; padding: 0 16px 14px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
         .photo-scroll::-webkit-scrollbar { display: none; }
         .photo-scroll img { width: 220px; height: 150px; object-fit: cover; border-radius: 10px; scroll-snap-align: start; flex-shrink: 0; }
-        .naver-btn { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 16px 14px; padding: 12px; background: #1ec800; color: #fff; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 600; transition: background 0.2s; }
+        .naver-btn { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 16px 14px; padding: 12px; background: #1ec800; color: #fff; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 600; }
         .naver-btn:hover { background: #17a800; }
         .naver-btn svg { width: 18px; height: 18px; fill: #fff; }
-        .custom-popup .leaflet-popup-content-wrapper { border-radius: 10px; }
+        .custom-popup .leaflet-popup-content-wrapper { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
         .custom-popup .leaflet-popup-content { margin: 10px 14px; font-size: 13px; line-height: 1.5; }
-        .popup-title { font-weight: 700; color: #222; margin-bottom: 2px; }
+        .custom-popup .leaflet-popup-tip { box-shadow: none; }
+        .popup-title { font-weight: 700; color: #222; }
         .popup-addr { color: #888; font-size: 12px; }
     </style>
 </head>
@@ -37,15 +41,13 @@
     </div>
     <div id="map"></div>
     <div id="cards"></div>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         var places = [
             {
                 name: "\ud638\ud154\ud3ec\ub808 \ub354 \uc2a4\ud30c",
                 address: "\ubd80\uc0b0\uc2dc \ub3d9\uad6c \uc911\uc559\ub300\ub85c 296\ubc88\uae38 6",
-                lat: 35.1200,
-                lng: 129.0410,
+                lat: 35.1200, lng: 129.0410,
                 tag: "\uc219\uc18c",
                 description: "\ubd80\uc0b0\uc5ed \uadfc\ucc98, \ucd08\ub7c9\uc5ed 12\ubc88 \ucd9c\uad6c \ub3c4\ubcf4 2\ubd84. \ud788\ub178\ub048\ud0d5\uacfc \ud14c\ub77c\uc2a4 \uc2a4\ud30c\ub8f8\uc774 \uc720\uba85\ud55c \ud638\ud154.",
                 naverUrl: "https://map.naver.com/p/search/\ud638\ud154\ud3ec\ub808%20\ub354%20\uc2a4\ud30c%20\ubd80\uc0b0",
@@ -58,43 +60,32 @@
                 ]
             }
         ];
-
         document.getElementById('count').textContent = places.length + '\uac1c \uc7a5\uc18c';
-
-        var map = L.map('map', { zoomControl: false }).setView([places[0].lat, places[0].lng], 16);
+        var map = L.map('map', { zoomControl: false }).setView([places[0].lat, places[0].lng], 15);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '\u00a9 OpenStreetMap',
-            maxZoom: 18
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19
         }).addTo(map);
-
         var icon = L.divIcon({
             className: '',
             html: '<svg width="36" height="46" viewBox="0 0 32 42" xmlns="http://www.w3.org/2000/svg"><path d="M16 0C7.164 0 0 7.164 0 16c0 12 16 26 16 26s16-14 16-26C32 7.164 24.836 0 16 0z" fill="#1ec800"/><circle cx="16" cy="15" r="7" fill="#fff"/></svg>',
             iconSize: [36, 46], iconAnchor: [18, 46], popupAnchor: [0, -46]
         });
-
         places.forEach(function(p) {
             L.marker([p.lat, p.lng], { icon: icon }).addTo(map)
                 .bindPopup('<div class="popup-title">' + p.name + '</div><div class="popup-addr">' + p.address + '</div>', { className: 'custom-popup' });
         });
-
         var cardsEl = document.getElementById('cards');
         places.forEach(function(p) {
             var photos = '';
-            p.photos.forEach(function(src) {
-                photos += '<img src="' + src + '" alt="' + p.name + '" loading="lazy" onerror="this.style.display=\'none\'">';
-            });
+            p.photos.forEach(function(src) { photos += '<img src="' + src + '" alt="' + p.name + '" loading="lazy" onerror="this.style.display=\'none\'">'; });
             cardsEl.innerHTML +=
                 '<div class="spot-card">' +
-                    '<div class="spot-header"><span class="spot-name">' + p.name + '</span><span class="spot-tag">' + p.tag + '</span></div>' +
-                    '<div class="spot-address">' + p.address + '</div>' +
-                    '<div class="spot-desc">' + p.description + '</div>' +
-                    '<div class="photo-scroll">' + photos + '</div>' +
-                    '<a class="naver-btn" href="' + p.naverUrl + '" target="_blank">' +
-                        '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.22.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>' +
-                        '\ub124\uc774\ubc84 \uc9c0\ub3c4\uc5d0\uc11c \ubcf4\uae30' +
-                    '</a>' +
+                '<div class="spot-header"><span class="spot-name">' + p.name + '</span><span class="spot-tag">' + p.tag + '</span></div>' +
+                '<div class="spot-address">' + p.address + '</div>' +
+                '<div class="spot-desc">' + p.description + '</div>' +
+                '<div class="photo-scroll">' + photos + '</div>' +
+                '<a class="naver-btn" href="' + p.naverUrl + '" target="_blank"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.22.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>\ub124\uc774\ubc84 \uc9c0\ub3c4\uc5d0\uc11c \ubcf4\uae30</a>' +
                 '</div>';
         });
     </script>
